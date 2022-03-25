@@ -7,7 +7,7 @@
 
 
 std::string encode_and_color(const std::string& data, const std::string& color, bool need_quotes = true) {
-    std::string buffer = "<span color=\"" + color + ">" + (need_quotes ? "«" : "");
+    std::string buffer = "<span color=\"" + color + "\">" + (need_quotes ? "«" : "");
     buffer.reserve(2 * data.size());
     for (const char& pos : data) {
         switch(pos) {
@@ -84,7 +84,6 @@ static Napi::Value gen_quote(const Napi::CallbackInfo& info) {
     auto args_opt = parse_args<std::string, std::string, Napi::ArrayBuffer>(info);
     if (!args_opt.has_value()) return env.Null();
     auto [text, name, ava_buf] = args_opt.value();
-    //std::cout << static_cast<int>(text[0]) << '\n';
 
     if (text.size() > 20000) {
         Napi::TypeError::New(env, "text too big").ThrowAsJavaScriptException();
