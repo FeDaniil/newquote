@@ -1,0 +1,30 @@
+{
+  "name": "newquote",
+  "version": "1.0.0",
+  "description": "VK bot creating quotes from messages",
+  "main": "index.js",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "cmake-js compile",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node index.js",
+    "build-start": "npm run build && npm run start"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fedaniil/newquote.git"
+  },
+  "author": "fedaniil",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/fedaniil/newquote/issues"
+  },
+  "homepage": "https://github.com/fedaniil/newquote#readme",
+  "dependencies": {
+    "bindings": "^1.5.0",
+    "node-addon-api": "^4.3.0",
+    "node-fetch": "^3.2.3",
+    "vk-io": "^4.5.2"
+  }
+}
