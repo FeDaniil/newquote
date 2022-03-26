@@ -5,10 +5,10 @@ import fetch from 'node-fetch';
 import * as readline from 'node:readline/promises';
 import {stdin as input, stdout as output} from 'node:process';
 
-const rl = realine.createInterface({ input, output });
+const rl = readline.createInterface({ input, output });
 
 const name = await rl.question("Name: ");
-const ava_link = await rl.question("Avatar link: ");
+const ava_link = (await rl.question("Avatar link: ")) || "https://vk.com/images/camera_200.png";
 const text = await rl.question("Text:\n");
 const ava_buf = await (await fetch(ava_link)).arrayBuffer();
 
