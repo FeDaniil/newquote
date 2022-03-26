@@ -63,9 +63,19 @@ async function h_fwd(ctx, next) {
     }
     const ava_buf = await (await fetch(ava_link)).arrayBuffer();
     try {
-        await ctx.sendPhotos([{
+        const photo_attach = await vk.upload.messagePhoto({
+            source: {
+                value: Buffer.from(cpp_back.gen_quote(text, name, ava_buf))
+            }
+        });
+        await vk.api.messages.send({
+            attachment: photo_attach,
+            random_id: 0,
+            peer_id: ctx.peerId
+        });
+        /*await ctx.sendPhotos([{
             value: Buffer.from(cpp_back.gen_quote(text, name, ava_buf))
-        }]);
+        }]);*/
     } catch (e) {
         console.log(e);
         await ctx.reply("Что-то пошло не так. Пожалуйста, напиши сюда: https://vk.com/topic-211997710_48858993");
