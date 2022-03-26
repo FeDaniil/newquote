@@ -7,7 +7,7 @@
 
 
 std::string encode_and_color(const std::string& data, const std::string& color, bool need_quotes = true) {
-    std::string buffer = "<span color=\"" + color + "\">" + (need_quotes ? "«" : "");
+    std::string buffer = "<span insert_hyphens=\"false\" color=\"" + color + "\">" + (need_quotes ? "«" : "");
     buffer.reserve(2 * data.size());
     for (const char& pos : data) {
         switch(pos) {
