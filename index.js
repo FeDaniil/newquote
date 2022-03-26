@@ -71,7 +71,7 @@ async function h_fwd(ctx, next) {
 }
 
 async function h_fallback(ctx, next) {
-    if (!ctx.isDM) return next();
+    if (ctx.isChat && !/club211997710|!цитата/i.test(ctx.text)) return next();
     await ctx.send('Я не понял твоей команды, прости 😔\nОтправь "!хелп", чтобы получить список команд');
 }
 
