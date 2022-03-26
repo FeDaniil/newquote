@@ -52,9 +52,14 @@ vk.updates.on('message_new', async (ctx, next) => {
             await ctx.send("Я не понял от кого сообщение, сделаю анонимным. Передал сообщение разработчику на изучение 🖨");
         }
         const ava_buf = await (await fetch(ava_link)).arrayBuffer();
-        await ctx.sendPhotos([{
-            value: Buffer.from(cpp_back.gen_quote(text, name, ava_buf))
-        }]);
+        try {
+            await ctx.sendPhotos([{
+                value: Buffer.from(cpp_back.gen_quote(text, name, ava_buf))
+            }]);
+        } catch (e) {
+            console.log(e);
+            await ctx.send("Что-то пошло не так. Может, текст слишком длинный?");
+        }
     } else {
         return next();
     }
