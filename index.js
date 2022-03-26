@@ -27,7 +27,7 @@ async function compile_text(ctx_arr) {
 }
 
 async function h_fwd(ctx, next) {
-    if (!ctx.hasForwards) return next();
+    if (!ctx.hasForwards || (ctx.isChat && !/club211997710|!цитата/i.test(ctx.text))) return next();
     const fwd = ctx.forwards;
     const root_msg = fwd[0];
     const text = await compile_text(fwd);
