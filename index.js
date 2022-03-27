@@ -34,6 +34,10 @@ async function compile_text(msg_ctx_arr) {
     return text_lst.join("\n");
 }
 
+function vk_escape(text) {
+    return text.replace(/\[(id|club)(\d*)\|([^\]]*)\]/gm, "$3");
+}
+
 async function get_text(msg_ctx, depth) {
     if (depth > 100) {
         return {
@@ -49,7 +53,7 @@ async function get_text(msg_ctx, depth) {
             return get_text(root_ctx, depth + 1);
         }
         return {
-            text: await compile_text(fwd),
+            text: vk_escape(await compile_text(fwd)),
             root_ctx,
             depth
         };
@@ -59,7 +63,7 @@ async function get_text(msg_ctx, depth) {
             return get_text(root_ctx);
         }
         return {
-            text: root_ctx.text,
+            text: vk_escape(root_ctx.text),
             root_ctx,
             depth
         }
