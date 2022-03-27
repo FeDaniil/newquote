@@ -35,6 +35,13 @@ async function compile_text(msg_ctx_arr) {
 }
 
 async function get_text(msg_ctx, depth) {
+    if (depth > 100) {
+        return {
+            text: null,
+            root_ctx: msg_ctx,
+            depth
+        };
+    }
     if (msg_ctx.hasForwards) {
         const fwd = msg_ctx.forwards;
         const root_ctx = fwd[0];
