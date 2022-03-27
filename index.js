@@ -119,10 +119,10 @@ async function get_author(root_ctx) {
     }
 }
 
-async function override_author(text) {
+async function override_author(text, is_chat) {
     let iter = text.matchAll(/\[(id|club)(\d*)\|[^\]]*\]/gm);
     let match = iter.next().value;
-    if (match && match[1] === 'club' && match[2] === '211997710') match = iter.next().value;
+    if (match && match[1] === 'club' && match[2] === '211997710' && is_chat) match = iter.next().value;
     if (match) {
         if (match[1] === 'id') {
             return get_user(parseInt(match[2]));
@@ -146,7 +146,7 @@ async function h_fwd(ctx, next) {
         await ctx.reply('Какая большая цитата... Мне страшно её рисовать 😰');
         return;
     }
-    let author = ctx.text ? (await override_author(ctx.text)) : null;
+    let author = ctx.text ? (await override_author(ctx.text, ctx.isChat)) : null;
     if (!author) {
         try {
             author = await get_author(root_ctx);
