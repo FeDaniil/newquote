@@ -95,10 +95,11 @@ std::string quote(const std::string& text) {
 }
 
 std::string prepare_quote(const std::string& user_text, const std::string& hex_color) {
-    return color(quote(encode(user_text)), hex_color);
+    return span_wrap(quote(encode(user_text)), {
+            {"color", hex_color},
+            {"insert_hyphens", "false"}
+    });
 }
-
-
 
 static Napi::Value gen_quote(const Napi::CallbackInfo& info) {
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
