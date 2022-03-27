@@ -6,23 +6,6 @@
 #include <tuple>
 
 
-std::string encode_and_color(const std::string& data, const std::string& color, bool need_quotes = true) {
-    std::string buffer = "<span insert_hyphens=\"false\" color=\"" + color + "\">" + (need_quotes ? "«" : "");
-    buffer.reserve(2 * data.size());
-    for (const char& pos : data) {
-        switch(pos) {
-            case '&':  buffer.append("&amp;");    break;
-            case '\"': buffer.append("&quot;");   break;
-            case '\'': buffer.append("&apos;");   break;
-            case '<':  buffer.append("&lt;");     break;
-            case '>':  buffer.append("&gt;");     break;
-            default:   buffer.append(&pos, 1);    break;
-        }
-    }
-    buffer.append(need_quotes ? "»</span>" : "</span>");
-    return buffer;
-}
-
 template<typename T>
 bool type_check(const Napi::Value& val) {
     if constexpr (std::is_same_v<T, std::string>) {
@@ -57,7 +40,7 @@ static std::optional<std::tuple<Types...>> parse_args(const Napi::CallbackInfo& 
 
     int i = 0;
     if (!(type_check<Types>(info[i++]) && ...)) {
-        Napi::TypeError::New(env, "wrong arg type").ThrowAsJavaScriptException();
+        Napi::TypeError::New(env, "wrong arg type for " + std::to_string(i) + " arg").ThrowAsJavaScriptException();
         return {};
     }
     return make_tuple_finally<Types...>(info, std::index_sequence_for<Types...>{});
@@ -66,18 +49,58 @@ static std::optional<std::tuple<Types...>> parse_args(const Napi::CallbackInfo& 
 std::string pick_font(const std::string& text) {
     std::cout << text.size() << '\n';
     if (text.size() < 500) {
-        return "Play bold italic 85";
+        return "Play bold italic 70";
     } else if (text.size() < 2000) {
-        return "Play bold italic 65";
+        return "Play bold italic 60";
     } else {
         return "Play bold italic 45";
     }
 }
 
+std::string span_wrap(const std::string& text, const std::string& span_props_string) {
+    return "<span " + span_props_string + ">" + text + "</span>";
+}
+
+std::string span_wrap(const std::string& text, std::initializer_list<std::pair<std::string, std::string>> span_props) {
+    std::string span_props_string;
+    for (auto [property, value] : span_props) {
+        span_props_string += property + "=\"" + value + "\" ";
+    }
+    span_props_string.pop_back();  // redundant space
+    return span_wrap(text, span_props_string);
+}
+
+std::string color(const std::string& text, const std::string& hex_color) {
+    return span_wrap(text, "color=\"" + hex_color + "\"");
+}
+
+std::string encode(const std::string& text) {
+    std::string buffer;
+    buffer.reserve(text.size());
+    for (const char& c : text) {
+        switch(c) {
+            case '&':  buffer.append("&amp;");    break;
+            case '\"': buffer.append("&quot;");   break;
+            case '\'': buffer.append("&apos;");   break;
+            case '<':  buffer.append("&lt;");     break;
+            case '>':  buffer.append("&gt;");     break;
+            default:   buffer.append(&c, 1);    break;
+        }
+    }
+    return buffer;
+}
+
+std::string quote(const std::string& text) {
+    return "«" + text + "»";
+}
+
+std::string prepare_quote(const std::string& user_text, const std::string& hex_color) {
+    return color(quote(encode(user_text)), hex_color);
+}
+
+
 
 static Napi::Value gen_quote(const Napi::CallbackInfo& info) {
-    // Napi::Env is the opaque data structure containing the environment in which the request is being run.
-    // We will need this env when we want to create any new objects inside of the node.js environment
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
     Napi::Env env = info.Env();
 
@@ -90,33 +113,49 @@ static Napi::Value gen_quote(const Napi::CallbackInfo& info) {
         return env.Null();
     }
 
-    const int W = 1602, MIN_H = 939, TOP_H = 230, DOWN_H = 230, LEFT_M = 280, RIGHT_M = 280, VK_LIMIT = 14000;
+    int W = 1200, MIN_H = 740,
+        TOP_H = 150, TOP_HM = W / 20, TOP_VM = 30,
+        DOWN_H = 250, DOWN_VM = 30,
+        AVA_LEFT = W / 20, AVA_SZ = 150,
+        DOWN_TEXT_LEFT = AVA_LEFT + AVA_SZ + W / 20, DOWN_HRM = W / 20,
+        BODY_LEFT_M = 2 * AVA_LEFT, BODY_RIGHT_M = BODY_LEFT_M,
+        VK_LIMIT = 14000;
 
-    // Form a composite pipeline
+    // prepare for composite pipeline
     std::vector<vips::VImage> comp_images;
     std::vector<int> comp_modes;
     std::vector<int> comp_x, comp_y;
  
-    // 1. render text
-    vips::VImage main_text = vips::VImage::text(encode_and_color(text, "#ded7d7").c_str(), vips::VImage::option()
+    // render main text
+    vips::VImage main_text = vips::VImage::text(prepare_quote(text, "#ded7d7").c_str(), vips::VImage::option()
             ->set("font", pick_font(text).c_str())
             ->set("align", VIPS_ALIGN_LOW)
-            ->set("width", W - LEFT_M - RIGHT_M)
+            ->set("width", W - BODY_LEFT_M - BODY_RIGHT_M)
             ->set("rgba", true)
     );
     if (main_text.height() + TOP_H + DOWN_H > VK_LIMIT - W) {
-        vips::VImage::text(encode_and_color(text, "#ded7d7").c_str(), vips::VImage::option()
+        vips::VImage::text(prepare_quote(text, "#ded7d7").c_str(), vips::VImage::option()
                 ->set("font", pick_font(text).c_str())
                 ->set("align", VIPS_ALIGN_LOW)
-                ->set("width", W - LEFT_M - RIGHT_M)
+                ->set("width", W - BODY_LEFT_M - BODY_RIGHT_M)
                 ->set("height", VK_LIMIT - W - TOP_H - DOWN_H)
                 ->set("rgba", true)
         );
     }
 
-    // 2. make main image
+    // load avatar
+    auto ava = vips::VImage::new_from_buffer(ava_buf.Data(), ava_buf.ByteLength(), "");
+    if (ava.bands() == 4) {  // has transparency
+        auto bands = ava.bandsplit();
+        bands.pop_back();
+        ava = vips::VImage::bandjoin(bands);
+    }
+    auto ava_bands = ava.bandsplit();
+    std::vector<double> ava_avg = {ava_bands[0].avg() * 0.5, ava_bands[1].avg() * 0.5, ava_bands[2].avg() * 0.5, 255};
+
+    // make background image
     vips::VImage bgnd = vips::VImage::black(W, std::max(MIN_H, main_text.height() + TOP_H + DOWN_H))
-            .linear({0, 0, 0, 0}, {14, 11, 11, 255})
+            .linear({0, 0, 0, 0}, ava_avg)
             //.cast(main_text.format())
             .copy(vips::VImage::option()
                           -> set("interpretation", VIPS_INTERPRETATION_sRGB)
@@ -127,40 +166,62 @@ static Napi::Value gen_quote(const Napi::CallbackInfo& info) {
     comp_images.emplace_back(std::move(bgnd));
 
     comp_modes.emplace_back(VIPS_BLEND_MODE_OVER);
-    comp_x.emplace_back(std::max(LEFT_M, (W - main_text.width()) / 2));
+    comp_x.emplace_back(std::max(BODY_LEFT_M, (W - main_text.width()) / 2) - 5);  // -5: human perception moment
     comp_y.emplace_back(TOP_H + std::max(0, (COMP_H - TOP_H - DOWN_H - main_text.height()) / 2));
     comp_images.emplace_back(std::move(main_text));
 
-    // 3. attach header
-    comp_images.emplace_back(vips::VImage::new_from_file("verkhniy_shablon.png", vips::VImage::option()->set("access", "sequential")));
-    comp_modes.emplace_back(VIPS_BLEND_MODE_OVER);
-    comp_x.emplace_back(0);
-    comp_y.emplace_back(0);
+    // add header
+    //comp_images.emplace_back(vips::VImage::new_from_file("verkhniy_shablon.png", vips::VImage::option()->set("access", "sequential")));
+    //comp_modes.emplace_back(VIPS_BLEND_MODE_OVER);
+    //comp_x.emplace_back(0);
+    //comp_y.emplace_back(0);
 
-    // 4. attach avatar
-    auto ava = vips::VImage::new_from_buffer(ava_buf.Data(), ava_buf.ByteLength(), "");
-    if (ava.width() != 200) ava = ava.resize(200. / ava.width());
-    comp_images.emplace_back(std::move(ava));
-    comp_modes.emplace_back(VIPS_BLEND_MODE_OVER);
-    comp_x.emplace_back(21);
-    comp_y.emplace_back(COMP_H - DOWN_H + 8);
-
-    // 5. attach footer
-    comp_images.emplace_back(vips::VImage::new_from_file("nizhniy_shablon.png", vips::VImage::option()->set("access", "sequential")));
-    comp_modes.emplace_back(VIPS_BLEND_MODE_OVER);
-    comp_x.emplace_back(0);
-    comp_y.emplace_back(COMP_H - DOWN_H);
-
-    // 6. generate and attach nickname
-    comp_images.emplace_back(vips::VImage::text(encode_and_color(name, "#ded7d7", false).c_str(), vips::VImage::option()
-            ->set("font", "Play bold italic 72")
-            ->set("align", VIPS_ALIGN_LOW)
-            ->set("width", W - 390)
+    // render and add header text
+    comp_images.emplace_back(vips::VImage::text(span_wrap("Золотой Фонд Цитат", {
+            {"color", "#fff"},
+            {"underline", "single"}
+    }).c_str(), vips::VImage::option()
+            ->set("font", "Play 70")
+            ->set("align", VIPS_ALIGN_CENTRE)
+            ->set("width", W - BODY_LEFT_M - BODY_RIGHT_M)
             ->set("rgba", true)
     ));
     comp_modes.emplace_back(VIPS_BLEND_MODE_OVER);
-    comp_x.emplace_back(390);
-    comp_y.emplace_back(COMP_H - DOWN_H + 95);
+    comp_x.emplace_back(std::max(BODY_LEFT_M, (W - comp_images[comp_images.size() - 1].width()) / 2));
+    comp_y.emplace_back(TOP_VM);
+
+    // add avatar
+    // prepare transparency mask
+    auto crude = vips::VImage::black(ava.width(), ava.height());
+    crude.draw_circle({255}, ava.width() / 2, ava.height() / 2, ava.width() / 2 - 2, vips::VImage::option()
+            ->set("fill", true)
+    );
+    auto alpha = vips::VImage::mask_butterworth_ring(ava.width(), ava.height(), 2, 0.98, 0.001, 0.2, vips::VImage::option()
+            ->set("nodc", true)
+            ->set("optical", true)
+    ).linear({255}, {0}) | crude;
+    // join transparency mask to avatar
+    ava = ava.bandjoin(alpha);
+    if (ava.width() != AVA_SZ) ava = ava.resize(static_cast<double>(AVA_SZ) / ava.width());
+    comp_images.emplace_back(std::move(ava));
+    comp_modes.emplace_back(VIPS_BLEND_MODE_ATOP);
+    comp_x.emplace_back(AVA_LEFT);
+    comp_y.emplace_back(COMP_H - (DOWN_H - DOWN_VM + AVA_SZ) / 2);
+
+    // render and add nickname
+    auto wrapped_copyright = span_wrap("© ", {
+            {"font", "sans bold 50"},
+            {"color", "#ded7d7"}
+    });
+    comp_images.emplace_back(vips::VImage::text((wrapped_copyright + color(encode(name), "#ded7d7")).c_str(), vips::VImage::option()
+            ->set("font", "Play bold italic 65")
+            ->set("align", VIPS_ALIGN_LOW)
+            ->set("width", W - DOWN_TEXT_LEFT - DOWN_HRM)
+            ->set("rgba", true)
+    ));
+    comp_modes.emplace_back(VIPS_BLEND_MODE_OVER);
+    comp_x.emplace_back(DOWN_TEXT_LEFT);
+    comp_y.emplace_back(COMP_H - (DOWN_H - DOWN_VM + comp_images[comp_images.size() - 1].height()) / 2);
 
     // Execute pipeline
     bgnd = vips::VImage::composite(comp_images, comp_modes, vips::VImage::option()
